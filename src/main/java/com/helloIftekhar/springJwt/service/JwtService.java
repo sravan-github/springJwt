@@ -6,6 +6,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -16,7 +17,16 @@ import java.util.function.Function;
 @Service
 public class JwtService {
 
-    private final String SECRET_KEY = "4bb6d1dfbafb64a681139d1586b6f1160d18159afd57c8c79136d7490630407c";
+    @Value("${application.security.jwt.secret-key}")
+    private String secretKey;
+
+    @Value("${application.security.jwt.access-token-expiration}")
+    private long accessTokenExpire;
+
+    @Value("${application.security.jwt.refresh-token-expiration}")
+    private long refreshTokenExpire;
+
+
     private final TokenRepository tokenRepository;
 
     public JwtService(TokenRepository tokenRepository) {
@@ -32,11 +42,22 @@ public class JwtService {
         String username = extractUsername(token);
 
         boolean validToken = tokenRepository
-                .findByToken(token)
+                .findByAccessToken(token)
                 .map(t -> !t.isLoggedOut())
                 .orElse(false);
 
         return (username.equals(user.getUsername())) && !isTokenExpired(token) && validToken;
+    }
+
+    public boolean isValidRefreshToken(String token, User user) {
+        String username = extractUsername(token);
+
+        boolean validRefreshToken = tokenRepository
+                .findByRefreshToken(token)
+                .map(t -> !t.isLoggedOut())
+                .orElse(false);
+
+        return (username.equals(user.getUsername())) && !isTokenExpired(token) && validRefreshToken;
     }
 
     private boolean isTokenExpired(String token) {
@@ -62,12 +83,20 @@ public class JwtService {
     }
 
 
-    public String generateToken(User user) {
+    public String generateAccessToken(User user) {
+        return generateToken(user, accessTokenExpire);
+    }
+
+    public String generateRefreshToken(User user) {
+        return generateToken(user, refreshTokenExpire );
+    }
+
+    private String generateToken(User user, long expireTime) {
         String token = Jwts
                 .builder()
                 .subject(user.getUsername())
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + 24*60*60*1000 ))
+                .expiration(new Date(System.currentTimeMillis() + expireTime ))
                 .signWith(getSigninKey())
                 .compact();
 
@@ -75,8 +104,7 @@ public class JwtService {
     }
 
     private SecretKey getSigninKey() {
-        byte[] keyBytes = Decoders.BASE64URL.decode(SECRET_KEY);
+        byte[] keyBytes = Decoders.BASE64URL.decode(secretKey);
         return Keys.hmacShaKeyFor(keyBytes);
     }
-
 }

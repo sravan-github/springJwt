@@ -3,6 +3,8 @@ package com.helloIftekhar.springJwt.controller;
 import com.helloIftekhar.springJwt.model.AuthenticationResponse;
 import com.helloIftekhar.springJwt.model.User;
 import com.helloIftekhar.springJwt.service.AuthenticationService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -30,5 +32,13 @@ public class AuthenticationController {
             @RequestBody User request
     ) {
         return ResponseEntity.ok(authService.authenticate(request));
+    }
+
+    @PostMapping("/refresh_token")
+    public ResponseEntity refreshToken(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        return authService.refreshToken(request, response);
     }
 }
